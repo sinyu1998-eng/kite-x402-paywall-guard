@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kite x402 Paywall Guard · 在线演示</title>
+<style>
+  :root{--bg:#0b0e12;--panel:#12171d;--line:#232c36;--ink:#e8eef5;--dim:#8593a3;--accent:#4cc2ff;--ok:#3ddc97;--warn:#ffb454;--bad:#ff6b6b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:radial-gradient(900px 500px at 80% -10%,rgba(76,194,255,.13),transparent 60%),var(--bg);
+       color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
+       min-height:100vh;padding:36px 18px 70px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto}
+  .tag{display:inline-block;font-size:11px;letter-spacing:.18em;color:var(--accent);border:1px solid rgba(76,194,255,.35);
+       padding:4px 10px;border-radius:2px}
+  h1{font-size:26px;font-weight:600;margin:16px 0 8px;letter-spacing:-.01em}
+  .sub{font-size:13.5px;color:var(--dim);line-height:1.9;max-width:640px}
+  .mock{margin-top:18px;font-size:12.5px;color:var(--warn);border-left:2px solid var(--warn);
+        padding:8px 14px;background:rgba(255,180,84,.06)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:26px 0 20px}
+  .btn{background:var(--panel);border:1px solid var(--line);color:var(--ink);padding:15px 14px;
+       text-align:left;cursor:pointer;border-radius:3px;font-family:inherit;transition:.15s}
+  .btn:hover{border-color:rgba(76,194,255,.55);background:#151c24}
+  .btn b{display:block;font-size:13.5px;margin-bottom:5px}
+  .btn span{font-size:11.5px;color:var(--dim);line-height:1.6}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;margin-top:8px}
+  .panel h2{font-size:12px;letter-spacing:.16em;color:var(--dim);padding:14px 16px;border-bottom:1px solid var(--line);font-weight:500}
+  .log{padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;
+       line-height:1.95;max-height:380px;overflow:auto}
+  .log div{margin-bottom:3px;word-break:break-all}
+  .t{color:#5d6b7a}
+  .s2{color:var(--ok)}.s4{color:var(--warn)}.s5{color:var(--bad)}
+  .k{color:var(--accent)}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:14px 16px}
+  .card{border:1px solid var(--line);padding:12px;border-radius:3px}
+  .card .n{font-size:12.5px;margin-bottom:6px}
+  .card .p{font-size:15px;color:var(--accent);font-weight:600}
+  .steps{display:flex;gap:8px;margin-top:22px;flex-wrap:wrap}
+  .step{font-size:11.5px;color:var(--dim);border:1px solid var(--line);padding:6px 12px;border-radius:20px}
+  .step.on{color:var(--ok);border-color:rgba(61,220,151,.45);background:rgba(61,220,151,.07)}
+  footer{margin-top:26px;font-size:11.5px;color:#5d6b7a;line-height:1.9}
+  code{background:#1a212a;padding:1px 5px;border-radius:2px;font-size:11.5px;color:#a9c4dd}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tag">X402 · HTTP 402 PAYMENT</div>
+  <h1>Kite x402 Paywall Guard</h1>
+  <p class="sub">
+    在接口返回内容之前，先确认这笔钱付过了、且这笔付款没被用过第二次。
+    点下面的按钮，走一遍完整链路。
+  </p>
+  <div class="mock">
+    ⚠️ 演示环境：链上验证为本地模拟（HMAC 签名 + nonce 去重），未发生真实链上转账。
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step" data-s="1">① 无凭证请求 → 402</div>
+    <div class="step" data-s="2">② 付款并签发凭证</div>
+    <div class="step" data-s="3">③ 携带凭证 → 放行</div>
+    <div class="step" data-s="4">④ 重放同一凭证 → 拒绝</div>
+  </div>
+
+  <div class="grid">
+    <button class="btn" id="b1"><b>① 直接请求</b><span>不带付款凭证访问付费接口，应返回 402</span></button>
+    <button class="btn" id="b2"><b>② 发起付款</b><span>签发一张付款凭证（模拟链上支付）</span></button>
+    <button class="btn" id="b3"><b>③ 付费后访问</b><span>携带凭证请求，应返回 200 与收据</span></button>
+  </div>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <button class="btn" id="b4"><b>④ 重放攻击</b><span>再次使用同一凭证，应被拒绝</span></button>
+    <button class="btn" id="b5"><b>重置演示</b><span>清空状态，从头再走一遍</span></button>
+  </div>
+
+  <div class="panel">
+    <h2>请求日志</h2>
+    <div class="log" id="log"><div class="t">等待操作…</div></div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>付费内容预览（放行后返回）</h2>
+    <div class="cards" id="cards">
+      <div class="card"><div class="n">智能体调用额度包</div><div class="p">9.90 USDC</div></div>
+      <div class="card"><div class="n">链上结算对账单</div><div class="p">19.90 USDC</div></div>
+      <div class="card"><div class="n">API 网关加速通道</div><div class="p">29.90 USDC</div></div>
+    </div>
+  </div>
+
+  <footer>
+    接口：<code>GET /api/premium</code> → 402 或 200 ｜ <code>POST /api/pay</code> 签发凭证 ｜
+    <code>GET /api/receipts</code> 查看收据<br>
+    本地运行：<code>npm run demo</code> → <code>http://localhost:8081</code><br>
+    源码：github.com/sinyu1998-eng/kite-x402-paywall-guard ｜ 生产验签走 <code>src/facilitator.js</code>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var logEl = document.getElementById('log');
+  var state = { payment: null, usedOnce: false };
+
+  function log(html, cls){
+    var d = document.createElement('div');
+    if(cls) d.className = cls;
+    d.innerHTML = html;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function mark(n){
+    var el = document.querySelector('.step[data-s="'+n+'"]');
+    if(el) el.classList.add('on');
+  }
+  function esc(s){ return String(s).replace(/[<>&]/g, function(c){ return ({'<':'&lt;','>':'&gt;','&':'&amp;'})[c]; }); }
+  function short(o){ var s = JSON.stringify(o); return s.length > 220 ? s.slice(0,220) + '…' : s; }
+
+  async function call(method, url, headers){
+    log('<span class="t">→</span> ' + method + ' ' + url + (headers && headers['X-PAYMENT'] ? ' <span class="k">[携带 X-PAYMENT]</span>' : ''), 't');
+    var res = await fetch(url, { method: method, headers: headers || {} });
+    var body = null;
+    try { body = await res.json(); } catch(e){}
+    var cls = res.status === 200 ? 's2' : (res.status === 402 ? 's5' : 's4');
+    log('<span class="' + cls + '">← ' + res.status + '</span> ' + esc(short(body || {})), '');
+    return { status: res.status, body: body };
+  }
+
+  document.getElementById('b1').addEventListener('click', async function(){
+    logEl.innerHTML = '';
+    await call('GET', '/api/premium');
+    mark(1);
+  });
+
+  document.getElementById('b2').addEventListener('click', async function(){
+    var r = await call('POST', '/api/pay', { 'Content-Type': 'application/json' });
+    if(r.status === 200 && r.body && r.body.xPaymentHeader){
+      state.payment = r.body.xPaymentHeader;
+      state.usedOnce = false;
+      log('<span class="k">凭证已就绪，可以继续第 ③ 步</span>', '');
+      mark(2);
+    }
+  });
+
+  document.getElementById('b3').addEventListener('click', async function(){
+    if(!state.payment){ log('<span class="s4">请先执行第 ② 步签发凭证</span>', ''); return; }
+    var r = await call('GET', '/api/premium', { 'X-PAYMENT': state.payment });
+    if(r.status === 200){
+      mark(3);
+      log('<span class="s2">✓ 放行成功，收据号 ' + (r.body.receipt ? r.body.receipt.id : '-') + '</span>', '');
+    }
+  });
+
+  document.getElementById('b4').addEventListener('click', async function(){
+    if(!state.payment){ log('<span class="s4">请先执行第 ② 步签发凭证</span>', ''); return; }
+    var r = await call('GET', '/api/premium', { 'X-PAYMENT': state.payment });
+    if(r.status === 402 && r.body && r.body.error === 'replay_detected'){
+      mark(4);
+      log('<span class="s2">✓ 重放已被拦截</span>', '');
+    }
+  });
+
+  document.getElementById('b5').addEventListener('click', function(){
+    state.payment = null; state.usedOnce = false;
+    logEl.innerHTML = '<div class="t">已重置，等待操作…</div>';
+    document.querySelectorAll('.step').forEach(function(e){ e.classList.remove('on'); });
+  });
+})();
+</script>
+</body>
+</html>
