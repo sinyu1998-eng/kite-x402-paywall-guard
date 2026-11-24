@@ -1,17 +1,34 @@
 {
   "name": "kite-x402-paywall-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "An x402 v2 payment-proof verifier CLI & service for the Kite AI ecosystem. Accepts a raw X-PAYMENT header, decodes it, validates the EIP-3009 authorization locally, and settles through a Kite x402 facilitator before releasing a paid resource.",
   "type": "module",
   "license": "MIT",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "main": "src/index.js",
-  "bin": { "x402-guard": "src/cli.js" },
+  "bin": {
+    "x402-guard": "src/cli.js"
+  },
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "node src/server.js",
-    "cli": "node src/cli.js"
+    "cli": "node src/cli.js",
+    "demo": "node demo/server.js"
   },
-  "keywords": ["kite", "x402", "payment", "eip-3009", "agent", "facilitator", "verify"],
-  "repository": { "type": "git", "url": "https://github.com/sinyu1998-eng/kite-x402-paywall-guard.git" }
+  "keywords": [
+    "kite",
+    "x402",
+    "payment",
+    "eip-3009",
+    "agent",
+    "facilitator",
+    "verify",
+    "demo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sinyu1998-eng/kite-x402-paywall-guard.git"
+  }
 }

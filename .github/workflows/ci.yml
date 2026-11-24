@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: node ${{ matrix.node }} · 测试与自检
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # engines 要求 >=20；20 与 22 覆盖当前 LTS 线
+        node: ['20', '22']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      # 本项目零生产依赖，无需 npm install / npm ci
+      - name: 版本信息
+        run: node -v && npm -v
+
+      - name: 自检
+        run: node src/cli.js selfcheck
+
+      - name: 单元与演示测试
+        run: npm test

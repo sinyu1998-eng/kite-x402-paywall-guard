@@ -25,7 +25,9 @@
 - [x] 本地校验失败时**短路**，不浪费 facilitator 配额
 - [x] 付费守卫 HTTP handler：未付款返回 402 challenge，付款成功放行
 - [x] CLI：`verify` / `guard` / `selfcheck` 三个子命令
-- [x] 17 个单元/边界测试
+- [x] 零依赖交互演示（`npm run demo`）：402 → 放行 → 重放拦截全链路可点
+- [x] GitHub Actions CI：Node 20 / 22 双版本自检 + 测试
+- [x] 22 个单元/边界/演示测试
 
 ## 环境要求
 
@@ -38,7 +40,7 @@
 git clone https://github.com/sinyu1998-eng/kite-x402-paywall-guard.git
 cd kite-x402-paywall-guard
 node src/cli.js selfcheck        # 应输出 SELFCHECK OK
-npm test                          # 17 个测试全部通过
+npm test                          # 22 个测试全部通过
 ```
 
 启动 HTTP 服务（可选）：
@@ -50,6 +52,27 @@ node src/server.js
 curl -i http://localhost:8080/healthz
 curl -i http://localhost:8080/.well-known/x402
 ```
+
+## 交互演示
+
+想在浏览器里直观看到「未付款被挡 → 付款放行 → 重放被拒」，跑演示服务：
+
+```sh
+npm run demo
+# → http://localhost:8081
+```
+
+页面提供四个按钮，对应完整链路：
+
+| 步骤 | 动作 | 预期 |
+|---|---|---|
+| ① | 不带凭证请求付费接口 | `402 payment_required` |
+| ② | 发起付款，签发凭证 | `200` + `xPaymentHeader` |
+| ③ | 携带凭证再次请求 | `200` + 收据 |
+| ④ | 重放同一凭证 | `402 replay_detected` |
+
+> 演示链路是**模拟的**：凭证由 HMAC 自签，重放防护用进程内 nonce 集合，不产生任何链上转账。
+> 生产验签与结算仍走 `src/facilitator.js`。边界说明与替换方法见 [docs/DEMO.md](docs/DEMO.md)。
 
 ## 配置示例
 
